@@ -263,6 +263,7 @@ export DB_ROOT_USER="${ROOT_USER:-root}"
 export DB_ROOT_PASSWORD="$(get_env_var_value ROOT_PASSWORD)"
 read -r -a DB_EXTRA_FLAGS <<< "$(mysql_extra_flags)"
 export DB_EXTRA_FLAGS
+export DB_DUMP_FILES_FROM_MASTER="$(get_env_var_value DUMP_FILES_FROM_MASTER)"
 EOF
 }
 
@@ -442,6 +443,35 @@ mysql_configure_replication() {
             sleep 1
         done
         debug "Replication master ready!"
+
+	# dumping master files into slave before configuring replication
+	if [[ ${DB_DUMP_FILES_FROM_MASTER} == "true" ]]; then
+
+		info "Dumping master files into slave before configuring replication. Dump may take some time..."
+
+		# need to reset master first so there is no ERROR 1840 (HY000)
+		debug "Dumping... Executing RESET MASTER on the slave before proceeding."
+		mysql_execute "mysql" <<EOF
+RESET MASTER;
+EOF
+
+		debug "Dumping... Executing mysqldump, saving to temporary_dump_file.sql."
+		# dumping to file and restoring separately (not in pipe), as - so far - restore is terribly slow
+		# using get_env_var_value instead regular variables because there is something wrong with variables' values, no time to debug
+		mysqldump --all-databases --triggers --routines --events -h "$(get_env_var_value MASTER_HOST)" -P "$(get_env_var_value MASTER_PORT_NUMBER)" -u "$(get_env_var_value MASTER_ROOT_USER)" -p"$(get_env_var_value MASTER_ROOT_PASSWORD)" > /bitnami/mysql/temporary_dump_file.sql
+
+		# dumping to file and restoring separately (not in pipe), as - so far - restore is terribly slow
+		debug "Restoring... Executing mysql, reading from temporary_dump_file.sql."
+		"$DB_BINDIR/mysql" -u root < /bitnami/mysql/temporary_dump_file.sql
+
+		debug "Removing temporary_dump_file.sql"
+		rm "/bitnami/mysql/temporary_dump_file.sql"
+
+		debug "Dump and restore completed..."
+	else
+		info "Skipping dumping master files into slave before configuring replication, as DUMP_FILES_FROM_MASTER was not set or was not set to TRUE..."
+	fi
+
         debug "Setting the master configuration..."
         mysql_execute "mysql" <<EOF
 CHANGE MASTER TO MASTER_HOST='$DB_MASTER_HOST',
