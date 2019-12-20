@@ -1,3 +1,17 @@
+This is a fork of the https://github.com/bitnami/bitnami-docker-mysql project.
+
+Changes:
+- adding support for MySQL dump-and-restore - useful when transaction logs are not "old" enough for them to work properly (ie. when you have had MySQL master ready for some time and then decided that you want to add a slave)
+
+Issues:
+- restore can be terribly slow at times (dump works fine)
+- due to this, dump-and-restore were separated (not using pipe) and this results in creating a temporary dump file (increased disk usage - likely to crash if the dump is >50% of the slave partition size)
+
+Usage:
+- add `MYSQL_DUMP_FILES_FROM_MASTER` env with value `TRUE` to your config
+- if the container is a slave and the MysQL dir is empty at startup, it will try to connect to master, dump and restore all of its files before setting the replication
+---------------
+
 # What is MySQL?
 
 > MySQL is a fast, reliable, scalable, and easy to use open-source relational database system. MySQL Server is intended for mission-critical, heavy-load production systems as well as for embedding into mass-deployed software.
