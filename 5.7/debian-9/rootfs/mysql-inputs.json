@@ -12,5 +12,6 @@
   "replicationUser": "{{$global.env.MYSQL_REPLICATION_USER}}",
   "rootPassword": "{{$global.env.MYSQL_ROOT_PASSWORD}}",
   "rootUser": "{{$global.env.MYSQL_ROOT_USER}}",
-  "username": "{{$global.env.MYSQL_USER}}"
+  "username": "{{$global.env.MYSQL_USER}}",
+  "dumpFilesFromMaster": "{{$global.env.MYSQL_DUMP_FILES_FROM_MASTER}}"
 }
